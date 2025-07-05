@@ -1,3 +1,4 @@
+To tylko modyfikacja kodu od PAZI88 z jego PNP wersji. W moim wypadku dopiero ta wersja zaczeła działać z chinskim STM oraz Speeduino 0.4.3 - Mega2560. Pamiętajcie też o dzielniku napięcia/konwerterze poziomów logicznych na rx i tx z speeduino!. Ustawienia w tunerstudio: Enable i generic fixed list
 
 # 📟 Serial3toBMWcan – Speeduino → BMW CAN Bridge (STM32)
 
@@ -28,8 +29,8 @@ Ten projekt to zaawansowany most UART → CAN oparty na STM32 (np. STM32F103), k
 ## 🛠️ Pinout
 | Funkcja                | Pin STM32 | Opis                                          |
 |------------------------|-----------|-----------------------------------------------|
-| UART RX (z Speeduino)  | `PB11`    | Odbiór danych z ECU (Serial3 RX)              |
-| UART TX (do Speeduino) | `PB10`    | Odpowiedzi DS2 (Serial3 TX)                   |
+| UART RX (z Speeduino)  | `PA10`    | Odbiór danych z ECU (Serial3 RX)              |
+| UART TX (do Speeduino) | `PA9`    | Odpowiedzi DS2 (Serial3 TX)                   |
 | CAN TX                 | `PA12`    | Transmisja danych CAN do zegarów              |
 | CAN RX                 | `PA11`    | Odbiór z magistrali BMW                       |
 | PWM Fan Output         | `PA15`    | Sterowanie wentylatorem (do ULN)              |
