@@ -1,89 +1,122 @@
-To tylko modyfikacja kodu od PAZI88 z jego PNP wersji. W moim wypadku dopiero ta wersja zaczeła działać z chinskim STM oraz Speeduino 0.4.3 - Mega2560. Pamiętajcie też o dzielniku napięcia/konwerterze poziomów logicznych na rx i tx z speeduino!. Ustawienia w tunerstudio: Enable i generic fixed list
-
 # 📟 Serial3toBMWcan – Speeduino → BMW CAN Bridge (STM32)
 
-Ten projekt to zaawansowany most UART → CAN oparty na STM32 (np. STM32F103), który umożliwia przesyłanie danych z ECU **Speeduino** do zegarów BMW E46/E39 przez magistralę **BMW CAN-Bus**.
+> ⚠️ **Based on original code by [pazi88](https://github.com/pazi88)**  
+> This version is a modified fork that improves compatibility with **Chinese STM32F103 boards** and **Speeduino v0.4.3 + Arduino Mega2560**.  
+>  
+> ✅ **How to install:**  
+> Simply **replace the `.ino` file** in the folder downloaded from pazi88’s GitHub with this version. Everything else stays the same.
 
 ---
 
-## 🧠 Funkcje
-- Wysyłanie RPM, TPS, temperatury silnika (CLT), prędkości (VSS), zużycia paliwa.
-- Symulacja działania oryginalnego DME przez ID 0x545 (Multiplexed Diagnostic Frames).
-- Odpowiedzi na zapytania DS2 przez CAN (np. 0x613, 0x615).
-- Obsługa PWM wentylatora (wyjście na pin `PA15`).
-- Obsługa sygnału A/C idle-up (`PC15`).
-- Logika błędów i zabezpieczeń (np. przegrzanie, brak sygnału UART).
-- Obsługa wiadomości z Speeduino przez UART (np. linia `"R"` i `"A"` z danych Runtime).
+## 🧠 Features
+
+- Sends **RPM**, **TPS**, **coolant temp (CLT)**, **vehicle speed (VSS)**, and **fuel consumption**.
+- Emulates original BMW DME using CAN ID **0x545** (Multiplexed Diagnostic Frames).
+- Responds to **DS2 diagnostic requests** (IDs: 0x613, 0x615).
+- **PWM fan control** (output on `PA15`).
+- Handles **A/C idle-up** input (`PC15`).
+- Error logic and safety features (e.g., overheating, UART signal loss).
+- Reads `"R"` and `"A"` lines from Speeduino **UART Runtime data**.
 
 ---
 
-## ⚙️ Wymagania sprzętowe
-- Płytka STM32 (np. STM32F103C8T6 – Blue Pill),
-- Komunikacja UART (Serial3 → Speeduino),
-- Magistrala CAN (np. przez sprzętowy kontroler STM32 CAN1),
-- Zasilanie 5V/12V,
-- Opcjonalnie: Arduino Mega (dla połączenia z ECU), wyświetlacz OLED I2C, linia VSS.
+## ⚠️ Important Notes
+
+> **⚡ Voltage Warning**  
+Use a **level shifter or voltage divider** between Speeduino (5V) and STM32 (3.3V) for **RX/TX UART lines** to avoid damage!
+
+> **✅ TunerStudio Settings**  
+Set:
+- `Enable` = ON  
+- `Generic fixed list` = selected  
 
 ---
 
-## 🛠️ Pinout
-| Funkcja                | Pin STM32 | Opis                                          |
+## 🛠️ Hardware Requirements
+
+- **STM32 board** (e.g. Blue Pill – STM32F103C8T6)
+- UART communication with Speeduino (Serial3)
+- Native STM32 CAN controller (CAN1)
+- 5V or 12V power supply
+- Optional: Arduino Mega (for Speeduino), OLED I2C display, external VSS input
+
+---
+
+## 📌 Pinout
+
+| Function                | STM32 Pin | Description                                   |
 |------------------------|-----------|-----------------------------------------------|
-| UART RX (z Speeduino)  | `PA10`    | Odbiór danych z ECU (Serial3 RX)              |
-| UART TX (do Speeduino) | `PA9`    | Odpowiedzi DS2 (Serial3 TX)                   |
-| CAN TX                 | `PA12`    | Transmisja danych CAN do zegarów              |
-| CAN RX                 | `PA11`    | Odbiór z magistrali BMW                       |
-| PWM Fan Output         | `PA15`    | Sterowanie wentylatorem (do ULN)              |
-| A/C Idle-Up            | `PC15`    | Reakcja na żądanie A/C                        |
-| SS0 (Arduino Mega)     | `PA1`     | Połączenie z pinem 53 Arduino Mega (opcjonalne) |
-| SS1 (Arduino Mega)     | `PC15`    | Połączenie z pinem 49 Arduino Mega (AC idle up) |
+| UART RX (from ECU)     | `PA10`    | Receives data from Speeduino (Serial3 RX)     |
+| UART TX (to ECU)       | `PA9`     | Sends DS2 responses to Speeduino (Serial3 TX) |
+| CAN TX                 | `PA12`    | Sends CAN frames to BMW cluster               |
+| CAN RX                 | `PA11`    | Receives CAN messages (DS2 etc.)              |
+| PWM Fan Output         | `PA15`    | Controls cooling fan via ULN2003/2803         |
+| A/C Idle-Up Input      | `PC15`    | Reads A/C request signal                      |
+| SS0 (Arduino Mega pin) | `PA1`     | Linked to Arduino Mega pin 53 (optional)      |
+| SS1 (Arduino Mega pin) | `PC15`    | Linked to Mega pin 49 (A/C idle-up)           |
 
 ---
 
-## 💻 Kod źródłowy
-Główna pętla odbiera dane przez UART, analizuje linie `"R"` i `"A"` z ECU i wysyła odpowiednie dane CAN na ID:
-- **0x316** – RPM, VSS, Gear, Load,
-- **0x329** – CLT, zużycie paliwa, TPS,
-- **0x545** – multiplexowane dane: zapłon, EML, rozgrzanie, MIL.
+## 💻 Code Overview
 
-Dodatkowo:
-- Obsługa DS2: odpowiedzi na 0x613, 0x615,
-- Sygnał prędkości (VSS) przetwarzany lokalnie lub z CAN,
-- Próg temperatury i wentylator z modulacją PWM,
-- Funkcja wykrywania braku danych UART.
+Main loop:
+- Reads UART lines (`"A"`, `"R"`) from Speeduino.
+- Parses key runtime values (RPM, TPS, CLT, PW, VSS).
+- Sends CAN messages on the following IDs:
 
----
+| CAN ID  | Contents                                 |
+|---------|------------------------------------------|
+| 0x316   | RPM, VSS, Gear, Engine Load              |
+| 0x329   | CLT, Fuel Usage, TPS                     |
+| 0x545   | Multiplexed data: ignition, MIL, warmup  |
 
-## 🔧 Kompilacja
-- PlatformIO lub Arduino IDE
-- Framework: STM32Cube / Arduino STM32
-- Płytka: `Generic STM32F103C series`
-- Definicja `REV1_5` aktywuje funkcje zależne od wersji płytki (pinout v1.5)
-- Biblioteki: `MFL.h`, `DS2.h` (lokalne / własne)
+Also:
+- Replies to **DS2 diagnostics** (0x613, 0x615)
+- Simulates or reads real **VSS**
+- Manages **fan PWM** based on CLT threshold
+- Detects **missing UART data** and applies fallback
 
 ---
 
-## 🧪 Testowanie
-- Zegar BMW powinien aktywować się w ciągu 2 sekund po starcie STM32
-- RPM, CLT, TPS reagują dynamicznie na dane z ECU
-- Prędkość (VSS) może być symulowana
-- Możliwość użycia INPA do odczytu DS2 z zegarów
+## 🔧 Build Instructions
+
+- Use **PlatformIO** or **Arduino IDE**
+- Board: `Generic STM32F103C series`
+- Framework: Arduino STM32 / STM32Cube
+- Define `REV1_5` in code for full pinout support
+- Required libraries:  
+  - `MFL.h`  
+  - `DS2.h` (both local/custom)
 
 ---
 
-## 📷 Efekty działania
-- Obrotomierz, temperatura, wskazanie MIL/EML działają jak w oryginale
-- Wentylator uruchamiany automatycznie zgodnie z temperaturą CLT
-- Brak błędów zegarów (głośnik, check control)
+## 🧪 Testing
+
+- Cluster should light up **within 2 seconds** of STM32 boot
+- RPM, CLT, TPS should react **live** to ECU data
+- VSS can be simulated or provided externally
+- Use **INPA** to verify DS2 communication
 
 ---
 
-## 📋 TODO / rozwój
-- Obsługa tempomatu, DIS, komunikacji D-Bus
-- Obsługa przycisków wielofunkcyjnych (MFL)
-- Dodatkowe źródła danych (np. z czujników analogowych)
-- Możliwość aktualizacji firmware przez UART
+## 📷 What Works
+
+- **Tachometer**, **coolant gauge**, **MIL/EML lights** behave like OEM
+- **Fan activates** automatically based on temperature
+- **No cluster errors** (no warning sounds, no check messages)
 
 ---
 
-Projekt do użytku własnego – eksperymentalny. Wymaga podstawowej wiedzy z zakresu CAN, STM32 i Speeduino.
+## 📝 TODO / Future Ideas
+
+- Add support for **cruise control**, **DIS**, **D-Bus**
+- Handle **MFL buttons** (steering wheel controls)
+- Extend data inputs (e.g., analog sensors)
+- Support firmware updates via UART
+
+---
+
+## ⚠️ Disclaimer
+
+This is an **experimental project** intended for personal use.  
+Requires basic knowledge of **CAN bus**, **STM32**, and **Speeduino internals**.
